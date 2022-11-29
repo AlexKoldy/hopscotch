@@ -127,7 +127,24 @@ if __name__ == "__main__":
     # values are currently taken straight from HW5 main method at the bottom of find_throwing_trajectory.py
     initial_state = np.zeros(n_x)
     distance = 15.0
-    final_configuration = np.array([np.pi, 0])
+    final_configuration = np.array(
+            [
+                10.0,  # Foot x-position (global frame)
+                0.0,  # Foot y-position (global frame)
+                0.0,  # Foot z-position (global frame)
+                0.0,  # Actuator length
+                10.0,  # CoM x-position (global frame)
+                0.0,  # CoM y-position (global frame)
+                10.0,  # CoM z-position (global frame)
+                0.0,  # Foot x-velocity (global frame)
+                0.0,  # Foot y-velocity (global frame)
+                0.0,  # Foot z-velocity (global frame)
+                0.0,  # Actuator velocity
+                0.0,  # CoM x-velocity (global frame)
+                0.0,  # CoM y-velocity (global frame)
+                0.0,  # CoM z-velocity (global frame)
+            ]
+        )
 
     # init drake mathematical program
     prog = MathematicalProgram()
@@ -176,6 +193,8 @@ if __name__ == "__main__":
     guess_x = np.zeros((N, n_x))
     guess_x[:, 0] = np.linspace(initial_state[0], final_configuration[0], N)
     guess_x[:, 1] = np.linspace(initial_state[1], final_configuration[1], N)
+
+    print(guess_x)
     prog.SetInitialGuess(x, guess_x)  # guess x
     prog.SetInitialGuess(u, guess_u)  # guess x
 
@@ -188,6 +207,8 @@ if __name__ == "__main__":
     x_sol = result.GetSolution(x)
     u_sol = result.GetSolution(u)
     t_land_sol = result.GetSolution(t_land)
+
+    print("RESULTS:")
 
     print('optimal cost: ', result.get_optimal_cost())
     print('x_sol: ', x_sol)
