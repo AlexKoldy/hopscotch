@@ -33,7 +33,7 @@ def AddCollocationConstraints(prog, robot, N, x, u, timesteps):
             u_i = vars[n_x:n_x + n_u]
             x_ip1 = vars[n_x + n_u: 2 * n_x + n_u]
             u_ip1 = vars[-n_u:]
-            return robot.CollocationConstraintEvaluator(robot, timesteps[i + 1] - timesteps[i], x_i, u_i,
+            return CollocationConstraintEvaluator(robot, timesteps[i + 1] - timesteps[i], x_i, u_i,
                                                         x_ip1,
                                                         u_ip1)
 

@@ -52,10 +52,19 @@ class Robot:
         self.x = self.x_0
 
     # TODO: Add getter/setter functions for num positions/velocities/actuators
+
+    def num_positions(self):
+        return 7
+    def num_velocities(self):
+        return 7
+    def num_actuators(self):
+        return 1
+
     def f(self, x, u):
         """
         x_dot = f(x, u)
         """
+
         p_foot = x[:3]
         q = x[3]
         p_com = x[4:7]
@@ -85,10 +94,18 @@ class Robot:
         a_com = (F_s / self.m) + np.array([0, 0, self.g])
         # print(d)
 
-        x_dot = np.zeros(x.shape)
-        x_dot[:7] = x[7:]
-        x_dot[10] = u
-        x_dot[11:] = a_com
+        # x_dot = np.zeros(x.shape)
+        # print(x[7:])
+        # x_dot[:7] = x[7:]
+        # x_dot[10] = u
+        # x_dot[11:] = a_com
+
+        x_dot = x[7:]
+        x_dot = np.append(x_dot, 0)
+        x_dot = np.append(x_dot, 0)
+        x_dot = np.append(x_dot, 0)
+        x_dot = np.append(x_dot, u)
+        x_dot = np.append(x_dot, a_com)
 
         return x_dot
 
@@ -108,7 +125,7 @@ if __name__ == "__main__":
     n_u = robot.num_actuators()
     # TODO: define initial state and jump distance - rn it is ball throwing distance but i think it is the same
     # values are currently taken straight from HW5 main method at the bottom of find_throwing_trajectory.py
-    initial_state = np.zeros(4)
+    initial_state = np.zeros(n_x)
     distance = 15.0
     final_configuration = np.array([np.pi, 0])
 
@@ -143,8 +160,49 @@ if __name__ == "__main__":
         g += 0.5 * (timesteps[1] - timesteps[0]) * (u[i].T @ u[i] + u[i + 1].T @ u[i + 1])
     prog.AddQuadraticCost(g)
 
+    # TODO: Add bounding box constraints on the inputs and qdot - fake rn
+    # ub = np.ones((N, n_q)) * joint_limits
+    # lb = -ub
+    # ubVel = np.ones((N, n_q)) * vel_limits
+    # lbVel = -ubVel
+    # prog.AddBoundingBoxConstraint(lb, ub, x[:, 0:n_q])
+    # prog.AddBoundingBoxConstraint(lbVel, ubVel, x[:, n_q:N])
+    # ubU = np.ones((N, n_u)) * effort_limits
+    # lbU = -ubU
+    # prog.AddBoundingBoxConstraint(lbU, ubU, u)
 
+    # give the solver an initial guess for x and u using prog.SetInitialGuess(var, value)
+    guess_u = np.random.rand(N, n_u)
+    guess_x = np.zeros((N, n_x))
+    guess_x[:, 0] = np.linspace(initial_state[0], final_configuration[0], N)
+    guess_x[:, 1] = np.linspace(initial_state[1], final_configuration[1], N)
+    prog.SetInitialGuess(x, guess_x)  # guess x
+    prog.SetInitialGuess(u, guess_u)  # guess x
 
+    # prog.SetInitialGuess(u, effort_limits * guess_u - 0.5 * np.ones((N, 2)))  # guess u with effort limits
+
+    # Set up solver
+    # print(prog)
+    result = Solve(prog)
+
+    x_sol = result.GetSolution(x)
+    u_sol = result.GetSolution(u)
+    t_land_sol = result.GetSolution(t_land)
+
+    print('optimal cost: ', result.get_optimal_cost())
+    print('x_sol: ', x_sol)
+    print('u_sol: ', u_sol)
+    print('t_land: ', t_land_sol)
+
+    print(result.get_solution_result())
+
+    # TODO: Reconstruct the trajectory
+    # xdot_sol = np.zeros(x_sol.shape)
+    # for i in range(N):
+    #     xdot_sol[i] = EvaluateDynamics(plant, plant_context, x_sol[i], u_sol[i])
+    #
+    # x_traj = PiecewisePolynomial.CubicHermite(timesteps, x_sol.T, xdot_sol.T)
+    # u_traj = PiecewisePolynomial.ZeroOrderHold(timesteps, u_sol.T)
 
 
     # pre-drake but potentially useful/necessary
@@ -170,16 +228,16 @@ if __name__ == "__main__":
     #     )
     #     t += dt
     #     t_history.append(t)
-
-    # Plot
-    plt.figure()
-    plt.plot(robot_state_history[4, :], robot_state_history[6, :])
-    plt.xlabel("x-position")
-    plt.ylabel("z-position")
-    plt.show()
-
-    plt.figure()
-    plt.plot(t_history, robot_state_history[6, :])
-    plt.xlabel("time")
-    plt.ylabel("z-position")
-    plt.show()
+    #
+    # # Plot
+    # plt.figure()
+    # plt.plot(robot_state_history[4, :], robot_state_history[6, :])
+    # plt.xlabel("x-position")
+    # plt.ylabel("z-position")
+    # plt.show()
+    #
+    # plt.figure()
+    # plt.plot(t_history, robot_state_history[6, :])
+    # plt.xlabel("time")
+    # plt.ylabel("z-position")
+    # plt.show()

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="68410659-8ff1-466a-ae70-7aa6170121c4" name="Changes" comment="started migrating drake over">
-      <change afterPath="$PROJECT_DIR$/kinematic_constraints.py" afterDir="false" />
+    <list default="true" id="68410659-8ff1-466a-ae70-7aa6170121c4" name="Changes" comment="continued migrating HW5 into this">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/dynamics_constraints.py" beforeDir="false" afterPath="$PROJECT_DIR$/dynamics_constraints.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/slip_test_drake_ryan.py" beforeDir="false" afterPath="$PROJECT_DIR$/slip_test_drake_ryan.py" afterDir="false" />
     </list>
@@ -69,9 +69,6 @@
     <configuration name="slip_test" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
       <option name="SDK_HOME" value="$PROJECT_DIR$/../drakeenv/bin/python3" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
       <option name="IS_MODULE_SDK" value="false" />
@@ -102,6 +99,8 @@
       <workItem from="1669654512061" duration="2754000" />
       <workItem from="1669685078963" duration="1684000" />
       <workItem from="1669698761131" duration="2868000" />
+      <workItem from="1669701885963" duration="35000" />
+      <workItem from="1669736303246" duration="3759000" />
     </task>
     <task id="LOCAL-00001" summary="started migrating drake over">
       <created>1669686754807</created>
@@ -110,7 +109,14 @@
       <option name="project" value="LOCAL" />
       <updated>1669686754807</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="continued migrating HW5 into this">
+      <created>1669701907378</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1669701907378</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -130,7 +136,8 @@
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
     <MESSAGE value="started migrating drake over" />
-    <option name="LAST_COMMIT_MESSAGE" value="started migrating drake over" />
+    <MESSAGE value="continued migrating HW5 into this" />
+    <option name="LAST_COMMIT_MESSAGE" value="continued migrating HW5 into this" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/hopscotch$slip_test.coverage" NAME="slip_test Coverage Results" MODIFIED="1669651622134" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
