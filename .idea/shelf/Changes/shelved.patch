@@ -1,0 +1,225 @@
+Index: slip_test.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import numpy as np\nimport matplotlib.pyplot as plt\n\n\nclass Robot:\n    def __init__(self):\n        # Constants\n\n        self.L_0 = 1.0  # original spring length\n        self.m = 80  # mass\n        self.g = 9.8  # gravity\n        # self.k = 10.7 * self.m * self.g / self.L_0  # spring constant\n        self.k = 100\n\n        # Initial state [q, q_dot]\n        self.x_0 = np.array(\n            [\n                self.L_0,  # r\n                0,  # theta\n                0,  # r_dot\n                0,  # theta_dot\n            ]\n        )\n        # State\n        self.x = self.x_0\n\n    def f(self, x, u):\n        \"\"\"\n        x_dot = f(x, u)\n        \"\"\"\n        r_ddot = (\n            x[0] * x[3] ** 2\n            - self.g * np.cos(x[1])\n            + self.k * (self.L_0 - x[0]) / self.m\n        )\n        theta_ddot = -2 * x[2] * x[3] / x[0] + self.g * np.sin(x[0]) / x[0]\n\n        return np.array([x[2], x[3], r_ddot, theta_ddot])\n\n    def step(self, x, u, dt):\n        self.x += self.f(x, u) * dt\n\n\nif __name__ == \"__main__\":\n    # Instantiate robot\n    robot = Robot()\n\n    # Simulation parameters\n    dt = 0.01\n    t = 0\n    t_max = 10\n\n    # Graphing parameters\n    robot_state_history = np.reshape(robot.x_0, (4, 1))\n    t_history = []\n    t_history.append(0)\n\n    # Run simulation\n    while t < t_max:\n        u = None\n        robot.step(x=robot.x, u=u, dt=dt)\n        robot_state_history = np.hstack(\n            (robot_state_history, np.reshape(robot.x, (4, 1)))\n        )\n        t += dt\n        t_history.append(t)\n\n    # Plot\n    plt.figure()\n    # plt.plot(\n    #     -robot_state_history[0, :] * np.sin(robot_state_history[1, :]),\n    #     robot_state_history[0, :] * np.cos(robot_state_history[1, :]),\n    # )\n    plt.plot(\n        t_history,\n        robot_state_history[0, :] * np.cos(robot_state_history[1, :]),\n    )\n    plt.xlabel(\"x-position\")\n    plt.ylabel(\"z-position\")\n    # plt.xlim(-6, 6)\n    # plt.ylim(-6, 6)\n    plt.legend()\n    plt.show()\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/slip_test.py b/slip_test.py
+--- a/slip_test.py	(revision 02d7bffa0de284db71e76f887d3d45a53dcd4bf4)
++++ b/slip_test.py	(date 1669662565621)
+@@ -6,11 +6,10 @@
+     def __init__(self):
+         # Constants
+ 
+-        self.L_0 = 1.0  # original spring length
++        self.L_0 = 1.0 + 0.25  # original spring length
+         self.m = 80  # mass
+         self.g = 9.8  # gravity
+-        # self.k = 10.7 * self.m * self.g / self.L_0  # spring constant
+-        self.k = 100
++        self.k = 10.7 * self.m * self.g / self.L_0  # spring constant
+ 
+         # Initial state [q, q_dot]
+         self.x_0 = np.array(
+@@ -33,11 +32,12 @@
+             - self.g * np.cos(x[1])
+             + self.k * (self.L_0 - x[0]) / self.m
+         )
+-        theta_ddot = -2 * x[2] * x[3] / x[0] + self.g * np.sin(x[0]) / x[0]
++        theta_ddot = -2 * x[2] * x[3] / x[0] + self.g * np.sin(x[1]) / x[0]
+ 
+         return np.array([x[2], x[3], r_ddot, theta_ddot])
+ 
+     def step(self, x, u, dt):
++        print(self.f(x,u))
+         self.x += self.f(x, u) * dt
+ 
+ 
+@@ -46,7 +46,7 @@
+     robot = Robot()
+ 
+     # Simulation parameters
+-    dt = 0.01
++    dt = 0.0001
+     t = 0
+     t_max = 10
+ 
+@@ -67,15 +67,21 @@
+ 
+     # Plot
+     plt.figure()
+-    # plt.plot(
+-    #     -robot_state_history[0, :] * np.sin(robot_state_history[1, :]),
+-    #     robot_state_history[0, :] * np.cos(robot_state_history[1, :]),
+-    # )
++    plt.plot(
++        -robot_state_history[0, :] * np.sin(robot_state_history[1, :]),
++        robot_state_history[0, :] * np.cos(robot_state_history[1, :]),
++    )
++    plt.xlabel("x-position")
++    plt.ylabel("z-position")
++    plt.legend()
++    plt.show()
++
++    plt.figure()
+     plt.plot(
+         t_history,
+         robot_state_history[0, :] * np.cos(robot_state_history[1, :]),
+     )
+-    plt.xlabel("x-position")
++    plt.xlabel("time")
+     plt.ylabel("z-position")
+     # plt.xlim(-6, 6)
+     # plt.ylim(-6, 6)
+Index: .idea/misc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/misc.xml b/.idea/misc.xml
+new file mode 100644
+--- /dev/null	(date 1669651681729)
++++ b/.idea/misc.xml	(date 1669651681729)
+@@ -0,0 +1,4 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.10 virtualenv at ~/github/MEAM5170/drakeenv" project-jdk-type="Python SDK" />
++</project>
+\ No newline at end of file
+Index: .idea/vcs.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/vcs.xml b/.idea/vcs.xml
+new file mode 100644
+--- /dev/null	(date 1669654497952)
++++ b/.idea/vcs.xml	(date 1669654497952)
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="VcsDirectoryMappings">
++    <mapping directory="" vcs="Git" />
++  </component>
++</project>
+\ No newline at end of file
+Index: .idea/inspectionProfiles/profiles_settings.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/inspectionProfiles/profiles_settings.xml b/.idea/inspectionProfiles/profiles_settings.xml
+new file mode 100644
+--- /dev/null	(date 1669651619216)
++++ b/.idea/inspectionProfiles/profiles_settings.xml	(date 1669651619216)
+@@ -0,0 +1,6 @@
++<component name="InspectionProjectProfileManager">
++  <settings>
++    <option name="USE_PROJECT_PROFILE" value="false" />
++    <version value="1.0" />
++  </settings>
++</component>
+\ No newline at end of file
+Index: .idea/.gitignore
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/.gitignore b/.idea/.gitignore
+new file mode 100644
+--- /dev/null	(date 1669651619265)
++++ b/.idea/.gitignore	(date 1669651619265)
+@@ -0,0 +1,8 @@
++# Default ignored files
++/shelf/
++/workspace.xml
++# Editor-based HTTP Client requests
++/httpRequests/
++# Datasource local storage ignored files
++/dataSources/
++/dataSources.local.xml
+Index: .idea/inspectionProfiles/Project_Default.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/inspectionProfiles/Project_Default.xml b/.idea/inspectionProfiles/Project_Default.xml
+new file mode 100644
+--- /dev/null	(date 1669651619141)
++++ b/.idea/inspectionProfiles/Project_Default.xml	(date 1669651619141)
+@@ -0,0 +1,14 @@
++<component name="InspectionProjectProfileManager">
++  <profile version="1.0">
++    <option name="myName" value="Project Default" />
++    <inspection_tool class="PyPep8NamingInspection" enabled="true" level="WEAK WARNING" enabled_by_default="true">
++      <option name="ignoredErrors">
++        <list>
++          <option value="N806" />
++          <option value="N803" />
++          <option value="N802" />
++        </list>
++      </option>
++    </inspection_tool>
++  </profile>
++</component>
+\ No newline at end of file
+Index: .idea/modules.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/modules.xml b/.idea/modules.xml
+new file mode 100644
+--- /dev/null	(date 1669654866964)
++++ b/.idea/modules.xml	(date 1669654866964)
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="ProjectModuleManager">
++    <modules>
++      <module fileurl="file://$PROJECT_DIR$/.idea/hopscotch.iml" filepath="$PROJECT_DIR$/.idea/hopscotch.iml" />
++    </modules>
++  </component>
++</project>
+\ No newline at end of file
+Index: .idea/other.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/other.xml b/.idea/other.xml
+new file mode 100644
+--- /dev/null	(date 1669651897931)
++++ b/.idea/other.xml	(date 1669651897931)
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="PySciProjectComponent">
++    <option name="PY_SCI_VIEW" value="true" />
++    <option name="PY_SCI_VIEW_SUGGESTED" value="true" />
++  </component>
++</project>
+\ No newline at end of file
+Index: .idea/hopscotch.iml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/hopscotch.iml b/.idea/hopscotch.iml
+new file mode 100644
+--- /dev/null	(date 1669654866962)
++++ b/.idea/hopscotch.iml	(date 1669654866962)
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<module type="PYTHON_MODULE" version="4">
++  <component name="NewModuleRootManager">
++    <content url="file://$MODULE_DIR$" />
++    <orderEntry type="jdk" jdkName="Python 3.10 virtualenv at ~/github/MEAM5170/drakeenv" jdkType="Python SDK" />
++    <orderEntry type="sourceFolder" forTests="false" />
++  </component>
++  <component name="PyDocumentationSettings">
++    <option name="renderExternalDocumentation" value="true" />
++  </component>
++</module>
+\ No newline at end of file

@@ -1,6 +1,23 @@
-import numpy as np
 import matplotlib.pyplot as plt
-from pydrake.solvers.mathematicalprogram import MathematicalProgram
+import numpy as np
+import importlib
+
+from pydrake.all import (
+    DiagramBuilder, Simulator, FindResourceOrThrow, MultibodyPlant, PiecewisePolynomial, SceneGraph,
+    Parser, JointActuatorIndex, MathematicalProgram, Solve
+)
+
+import kinematic_constraints
+import dynamics_constraints
+
+importlib.reload(kinematic_constraints)
+importlib.reload(dynamics_constraints)
+from kinematic_constraints import (
+    AddFinalLandingPositionConstraint
+)
+from dynamics_constraints import (
+  AddCollocationConstraints,
+)
 
 
 class Robot:
@@ -34,6 +51,7 @@ class Robot:
         # State
         self.x = self.x_0
 
+    # TODO: Add getter/setter functions for num positions/velocities/actuators
     def f(self, x, u):
         """
         x_dot = f(x, u)
@@ -77,79 +95,81 @@ class Robot:
     def step(self, x, u, dt):
         self.x += self.f(x, u) * dt
 
-    def CollocationConstraintEvaluator(planar_arm, context, dt, x_i, u_i, x_ip1, u_ip1):
-        n_x = planar_arm.num_positions() + planar_arm.num_velocities()
-        h_i = np.zeros(n_x, )
-        # TODO: Add f_i and f_ip1
-        # You should make use of the EvaluateDynamics() function to compute f(x,u)
-        s0 = x_i
-        f_i = robot.f(x_i, u_i)
-        s1 = f_i
-        f_ip1 = robot.f(x_ip1, u_ip1)
-        s2 = (3 * x_ip1 - 3 * x_i - 2 * f_i * dt - f_ip1 * dt) / (dt * dt)
-        s3 = (-2 * x_ip1 + 2 * x_i + f_i * dt + f_ip1 * dt) / (dt * dt * dt)
-
-        s_midpoint = (1 / 2) * (x_i + x_ip1) - (dt / 8) * (f_ip1 - f_i)
-        sdot_midpoint = 3 / (2 * dt) * (x_ip1 - x_i) - 0.25 * (f_i + f_ip1)
-
-        h_i = sdot_midpoint - robot.f(s_midpoint, (u_i + u_ip1) * 0.5)
-
-        return h_i
-
-    def AddCollocationConstraints(prog, planar_arm, context, N, x, u, timesteps):
-        n_u = planar_arm.num_actuators()
-        n_x = planar_arm.num_positions() + planar_arm.num_velocities()
-
-        for i in range(N - 1):
-            def CollocationConstraintHelper(vars):
-                x_i = vars[:n_x]
-                u_i = vars[n_x:n_x + n_u]
-                x_ip1 = vars[n_x + n_u: 2 * n_x + n_u]
-                u_ip1 = vars[-n_u:]
-                return robot.CollocationConstraintEvaluator(planar_arm, context, timesteps[i + 1] - timesteps[i], x_i, u_i,
-                                                      x_ip1,
-                                                      u_ip1)
-
-            # TODO: Within this loop add the dynamics constraints for segment i (aka collocation constraints)
-            #       to prog
-            # Hint: use prog.AddConstraint(CollocationConstraintHelper, lb, ub, vars)
-            # where vars = hstack(x[i], u[i], ...)
-            lb = np.zeros(n_x)
-            ub = lb
-            vars = np.hstack((x[i], u[i], x[i + 1], u[i + 1]))
-            prog.AddConstraint(CollocationConstraintHelper, lb, ub, vars)
-
-
 if __name__ == "__main__":
     # Instantiate robot
     robot = Robot()
 
+    # init constants
+    N = 5  # number of knot points
+    tf = 3.0  # last time
+    n_q = robot.num_positions()
+    n_v = robot.num_velocities()
+    n_x = n_q + n_v
+    n_u = robot.num_actuators()
+    # TODO: define initial state and jump distance - rn it is ball throwing distance but i think it is the same
+    # values are currently taken straight from HW5 main method at the bottom of find_throwing_trajectory.py
+    initial_state = np.zeros(4)
+    distance = 15.0
+    final_configuration = np.array([np.pi, 0])
+
+    # init drake mathematical program
     prog = MathematicalProgram()
+    x = np.zeros((N, n_x), dtype="object")
+    u = np.zeros((N, n_u), dtype="object")
+    for i in range(N):
+        x[i] = prog.NewContinuousVariables(n_x, "x_" + str(i))
+        u[i] = prog.NewContinuousVariables(n_u, "u_" + str(i))
 
-    # Simulation parameters
-    dt = 0.0001
-    t = 0
-    t_max = 10
+    t_land = prog.NewContinuousVariables(1, "t_land")
 
-    # Graphing parameters
-    robot_state_history = np.reshape(robot.x_0, (14, 1))
-    t_history = []
-    t_history.append(0)
+    t0 = 0.0
+    timesteps = np.linspace(t0, tf, N)
+    x0 = x[0]
+    xf = x[-1]
 
-    # Run simulation
-    while t < t_max:
-        if t < 2:
-            u = 0
-        elif 2 <= t and t <= 5:
-            u = 1
-        elif 5 < t:
-            u = 0
-        robot.step(x=robot.x, u=u, dt=dt)
-        robot_state_history = np.hstack(
-            (robot_state_history, np.reshape(robot.x, (14, 1)))
-        )
-        t += dt
-        t_history.append(t)
+    # Add constraints
+    # Add the kinematic constraints (initial state, final state)
+    prog.AddLinearEqualityConstraint(x0, initial_state)
+
+    # Add the kinematic constraint on the final state
+    AddFinalLandingPositionConstraint(prog, xf, distance, t_land)
+
+    # Add the collocation aka dynamics constraints
+    AddCollocationConstraints(prog, robot, N, x, u, timesteps)
+
+    # want to minimize u, quadratic cost
+    g = 0
+    for i in range(N - 1):
+        g += 0.5 * (timesteps[1] - timesteps[0]) * (u[i].T @ u[i] + u[i + 1].T @ u[i + 1])
+    prog.AddQuadraticCost(g)
+
+
+
+
+
+    # pre-drake but potentially useful/necessary
+
+    # # Simulation parameters
+    # dt = 0.0001
+    # t = 0
+    # t_max = 10
+    #
+    # # Graphing parameters
+    # robot_state_history = np.reshape(robot.x_0, (14, 1))
+    # t_history = [0]
+    #
+    # # Run simulation
+    # while t < t_max:
+    #     if 2 <= t <= 5:
+    #         u = 1
+    #     else:
+    #         u = 0
+    #     robot.step(x=robot.x, u=u, dt=dt)
+    #     robot_state_history = np.hstack(
+    #         (robot_state_history, np.reshape(robot.x, (14, 1)))
+    #     )
+    #     t += dt
+    #     t_history.append(t)
 
     # Plot
     plt.figure()
