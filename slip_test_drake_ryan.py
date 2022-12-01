@@ -4,7 +4,7 @@ import importlib
 
 from pydrake.all import (
     DiagramBuilder, Simulator, FindResourceOrThrow, MultibodyPlant, PiecewisePolynomial, SceneGraph,
-    Parser, JointActuatorIndex, MathematicalProgram, Solve
+    Parser, JointActuatorIndex, MathematicalProgram, Solve, AutoDiffXd
 )
 
 import kinematic_constraints
@@ -16,7 +16,7 @@ from kinematic_constraints import (
     AddFinalLandingPositionConstraint
 )
 from dynamics_constraints import (
-  AddCollocationConstraints,
+    AddCollocationConstraints,
 )
 
 
@@ -38,7 +38,7 @@ class Robot:
                 0.0,  # Actuator length
                 0.0,  # CoM x-position (global frame)
                 0.0,  # CoM y-position (global frame)
-                10.0,  # CoM z-position (global frame)
+                15.0,  # CoM z-position (global frame)
                 0.0,  # Foot x-velocity (global frame)
                 0.0,  # Foot y-velocity (global frame)
                 0.0,  # Foot z-velocity (global frame)
@@ -55,8 +55,10 @@ class Robot:
 
     def num_positions(self):
         return 7
+
     def num_velocities(self):
         return 7
+
     def num_actuators(self):
         return 1
 
@@ -69,15 +71,13 @@ class Robot:
         q = x[3]
         p_com = x[4:7]
 
-        d = np.sqrt(
-            (p_com[0] - p_foot[0]) ** 2
-            + (p_com[1] - p_foot[1]) ** 2
-            + (p_com[2] - p_foot[2]) ** 2
-        )
+        d = ((p_com[0] - p_foot[0]) ** 2
+             + (p_com[1] - p_foot[1]) ** 2
+             + (p_com[2] - p_foot[2]) ** 2)
 
         F_s = (
                 self.k
-                * (self.L_0 - d + q)
+                * (self.L_0 - np.sqrt(d + (1e-10)) + q)
                 * np.array(
             [
                 (p_com[0] - p_foot[0]) / d,
@@ -87,18 +87,7 @@ class Robot:
         )
         )
 
-        # print((p_com[0] - p_foot[0]) / d)
-        # print((p_com[1] - p_foot[1]) / d)
-        # print((p_com[2] - p_foot[2]) / d)
-
         a_com = (F_s / self.m) + np.array([0, 0, self.g])
-        # print(d)
-
-        # x_dot = np.zeros(x.shape)
-        # print(x[7:])
-        # x_dot[:7] = x[7:]
-        # x_dot[10] = u
-        # x_dot[11:] = a_com
 
         x_dot = x[7:]
         x_dot = np.append(x_dot, 0)
@@ -112,39 +101,39 @@ class Robot:
     def step(self, x, u, dt):
         self.x += self.f(x, u) * dt
 
+
 if __name__ == "__main__":
     # Instantiate robot
     robot = Robot()
 
     # init constants
     N = 25  # number of knot points
-    tf = 10.0  # last time
+    tf = 8.0  # last time
     n_q = robot.num_positions()
     n_v = robot.num_velocities()
     n_x = n_q + n_v
     n_u = robot.num_actuators()
-    # TODO: define initial state and jump distance - rn it is ball throwing distance but i think it is the same
-    # values are currently taken straight from HW5 main method at the bottom of find_throwing_trajectory.py
+    # TODO: define initial state and jump distance
     initial_state = robot.x_0
-    distance = 15.0
+    distance = 10.0
     final_configuration = np.array(
-            [
-                0.0,  # Foot x-position (global frame)
-                0.0,  # Foot y-position (global frame)
-                0.0,  # Foot z-position (global frame)
-                0.0,  # Actuator length
-                0.0,  # CoM x-position (global frame)
-                0.0,  # CoM y-position (global frame)
-                15.0,  # CoM z-position (global frame)
-                0.0,  # Foot x-velocity (global frame)
-                0.0,  # Foot y-velocity (global frame)
-                0.0,  # Foot z-velocity (global frame)
-                0.0,  # Actuator velocity
-                0.0,  # CoM x-velocity (global frame)
-                0.0,  # CoM y-velocity (global frame)
-                0.0,  # CoM z-velocity (global frame)
-            ]
-        )
+        [
+            0.0,  # Foot x-position (global frame)
+            0.0,  # Foot y-position (global frame)
+            0.0,  # Foot z-position (global frame)
+            0.0,  # Actuator length
+            0.0,  # CoM x-position (global frame)
+            0.0,  # CoM y-position (global frame)
+            8.0,  # CoM z-position (global frame)
+            0.0,  # Foot x-velocity (global frame)
+            0.0,  # Foot y-velocity (global frame)
+            0.0,  # Foot z-velocity (global frame)
+            0.0,  # Actuator velocity
+            0.0,  # CoM x-velocity (global frame)
+            0.0,  # CoM y-velocity (global frame)
+            0.0,  # CoM z-velocity (global frame)
+        ]
+    )
 
     # init drake mathematical program
     prog = MathematicalProgram()
@@ -165,13 +154,15 @@ if __name__ == "__main__":
     # Add the kinematic constraints (initial state, final state)
     prog.AddLinearEqualityConstraint(x0, initial_state)
 
-    # add kinematics/final state constraint
+
+    # add final state constraint
+
     def add_final_state_constraint(
-            self,
+            robot: Robot,
             prog: MathematicalProgram,
             x_f: np.array,
             jumping_distance: np.array,
-            t_land: float,
+            t_land,
     ):
         """
         Creates a constraint on the final state of the CoM
@@ -219,7 +210,7 @@ if __name__ == "__main__":
             x_com_f = x_com_i + v_com_x_i * t_land
             y_com_f = y_com_i + v_com_y_i * t_land
             z_com_f = (
-                    z_com_i + v_com_z_i * t_land + (1 / 2) * self.aslip.g * t_land ** 2
+                    z_com_i + v_com_z_i * t_land + (1 / 2) * robot.g * t_land ** 2
             )
 
             # Setup constraints
@@ -241,16 +232,17 @@ if __name__ == "__main__":
         x_jump = jumping_distance[0]  # TODO
         y_jump = jumping_distance[1]
         bounds = np.array(
-            [x_jump, y_jump, self.aslip.L_0, self.aslip.L_0]
+            [x_jump, y_jump, robot.L_0, robot.L_0]
         )  # TODO z constraint
-        prog.AddConstraint(landing_constraint, bounds, bounds, np.hstack((x_f, t_land)))
+        evaluated_constraints = landing_constraint(np.append(x_f, t_land))
 
         # Constraint on landing time
         prog.AddConstraint(t_land[0] >= 0)
 
 
-    # Add the kinematic constraint on the final state
-    # AddFinalLandingPositionConstraint(prog, xf, distance, t_land)
+    # add kinematic constraints
+    jump = np.array([distance, distance])
+    add_final_state_constraint(robot, prog, xf, jump, t_land)
 
     # Add the collocation aka dynamics constraints
     AddCollocationConstraints(prog, robot, N, x, u, timesteps)
@@ -262,8 +254,22 @@ if __name__ == "__main__":
     prog.AddQuadraticCost(g)
 
     # TODO: Add bounding box constraints on the inputs and qdot - fake rn
-    # ub = np.ones((N, n_q)) * joint_limits
-    # lb = -ub
+
+    # x[0],  # Foot x-position (global frame)
+    # x[1],  # Foot y-position (global frame)
+    # x[2],  # Foot z-position (global frame)
+    # x[3],  # Actuator length
+    # x[4],  # CoM x-position (global frame)
+    # x[5],  # CoM y-position (global frame)
+    # x[6],  # CoM z-position (global frame)
+
+    print(x.shape)
+    prog.AddBoundingBoxConstraint(0, 0, x[:, :3])
+    prog.AddBoundingBoxConstraint(0, 1e10, x[:, 6])
+    for i in range(N):
+        d = (x[i, 4] - x[i, 0]) ** 2 + (x[i, 5] - x[i, 1]) ** 2 + (x[i, 6] - x[i, 2]) ** 2
+        prog.AddConstraint(d <= (robot.L_0) ** 2)
+
     # ubVel = np.ones((N, n_q)) * vel_limits
     # lbVel = -ubVel
     # prog.AddBoundingBoxConstraint(lb, ub, x[:, 0:n_q])
@@ -286,7 +292,6 @@ if __name__ == "__main__":
     for i in range(N):
         prog.SetInitialGuess(x[i, :], robot.x_0)
         prog.SetInitialGuess(u[i], np.array([0]))
-
 
     # Set up solver
     # print(prog)
@@ -318,7 +323,11 @@ if __name__ == "__main__":
     plt.xlabel("time")
     plt.ylabel("Z")
     plt.show()
-
+    # plt.figure()
+    # plt.plot(x_sol[:, 4], x_sol[:, 6])
+    # plt.xlabel("x")
+    # plt.ylabel("Z")
+    # plt.show()
 
     # pre-drake but potentially useful/necessary
 
