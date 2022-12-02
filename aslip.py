@@ -55,18 +55,15 @@ class ASLIP:
                     (p_com[0] - p_foot[0]) / d,
                     (p_com[1] - p_foot[1]) / d,
                     (p_com[2] - p_foot[2]) / d,
-                ]
+                ],
+                dtype=AutoDiffXd,
             )
         )
 
         a_com = (F_s / self.m) + np.array([0, 0, self.g])
-
         x_dot = np.zeros(x.shape, dtype=AutoDiffXd)
-
         x_dot[:7] = x[7:]
-
         x_dot[10] = u
-
         x_dot[11:] = a_com
 
         return x_dot

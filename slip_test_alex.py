@@ -1,6 +1,8 @@
 from pydrake.all import MathematicalProgram, Solve, PiecewisePolynomial
 from pydrake.autodiffutils import AutoDiffXd
 import numpy as np
+import matplotlib.pyplot as plt
+from scipy.interpolate import CubicHermiteSpline
 
 from aslip import ASLIP
 
@@ -18,16 +20,16 @@ class OfflinePlanner:
         self.x_0 = self.aslip.x_0  # initial state
 
         # Collocation parameters
-        self.N = 12  # number of knot points
+        self.N = 5  # number of knot points
 
     def find_com_trajectory(
-        self, x_f: np.array, t_f: float, jumping_distance: np.array
+        self, final_state: np.array, t_f: float, jumping_distance: np.array
     ) -> list:
         """
         Finds the CoM trajectory
 
         Arguments:
-            x_f - (np.array) final configuration
+            final_state - (np.array) final configuration
             t_f - (float) final time
             jumping distance - (np.array) distance in x & y the CoM should jump [m]
 
@@ -64,6 +66,21 @@ class OfflinePlanner:
         # Dynamics constraints
         self.add_dynamics_constraint(prog, x, u, timesteps)
 
+        # Add foot constraint
+        bounds = np.array([0, 0, 0])
+        for i in range(self.N):
+            prog.AddLinearEqualityConstraint(x[i, :3], bounds)
+
+        # Add spring constraint
+        for i in range(self.N - 1):
+            d = np.sqrt(
+                (x[i, 4] - x[i, 0]) ** 2
+                + (x[i, 5] - x[i, 1]) ** 2
+                + (x[i, 6] - x[i, 2]) ** 2
+            )
+            prog.AddConstraint(d - x[i, 3] <= self.aslip.L_0)
+            prog.AddConstraint(d >= 0)
+
         # Find delta t
         dt = timesteps[1] - timesteps[0]  # [s]
 
@@ -90,10 +107,13 @@ class OfflinePlanner:
         x_dot_sol = np.zeros(x_sol.shape)
         for i in range(self.N):
             x_dot_sol[i] = self.aslip.f(x_sol[i], u_sol[i])
-        x_traj = PiecewisePolynomial.CubicHermite(timesteps, x_sol.T, x_dot_sol.T)
-        u_traj = PiecewisePolynomial.ZeroOrderHold(timesteps, u_sol.T)
+        # x_traj = PiecewisePolynomial.CubicHermite(timesteps, x_sol.T, x_dot_sol.T)
+        x_traj = CubicHermiteSpline(timesteps, x_sol[:, 4], x_dot_sol[:, 4])
+        z_traj = CubicHermiteSpline(timesteps, x_sol[:, 6], x_dot_sol[:, 6])
 
-        return x_traj, u_traj
+        # u_traj = PiecewisePolynomial.ZeroOrderHold(timesteps, u_sol.T)
+
+        return x_traj, z_traj
 
     def add_final_state_constraint(
         self,
@@ -154,15 +174,17 @@ class OfflinePlanner:
             # Setup constraints
             constraint_eval[0] = x_com_f
             constraint_eval[1] = y_com_f
-            constraint_eval[2] = z_com_f
-            constraint_eval[3] = np.sqrt(
-                (x_com_i - x_foot) ** 2
-                + (y_com_i - y_foot) ** 2
-                + (z_com_i - z_foot) ** 2
+            constraint_eval[2] = z_com_f - q[3]
+            constraint_eval[3] = (
+                np.sqrt(
+                    (x_com_i - x_foot) ** 2
+                    + (y_com_i - y_foot) ** 2
+                    + (z_com_i - z_foot) ** 2
+                )
+                - q[3]
             )
 
             # constraint_eval = [constraint_eval[i] for i in range(4)]
-            print(type(constraint_eval))
 
             return constraint_eval
 
@@ -206,15 +228,15 @@ class OfflinePlanner:
                 h_i - (np.array) collocation constraints
             """
             n_x = self.x_0.shape[0]
-            h_i = np.zeros((n_x,))
+            # h_i = np.zeros((n_x,))
 
-            f_i = self.aslip.f(x_i, u_i)
-            f_ip1 = self.aslip.f(x_ip1, u_ip1)
+            f_i = self.aslip.f(x_i, u_i[0])
+            f_ip1 = self.aslip.f(x_ip1, u_ip1[0])
 
             s_dot_i = (1.5 / dt) * (x_ip1 - x_i) - 0.25 * (f_i + f_ip1)
             s_i = 0.5 * (x_i + x_ip1) - (dt / 8.0) * (f_ip1 - f_i)
 
-            h_i = s_dot_i - self.aslip.f(s_i, 0.5 * (u_ip1 + u_i))
+            h_i = s_dot_i - self.aslip.f(s_i, 0.5 * (u_ip1[0] + u_i[0]))
 
             return h_i
 
@@ -256,7 +278,16 @@ class OfflinePlanner:
 
 if __name__ == "__main__":
     planner = OfflinePlanner()
-    x_traj, u_traj = planner.find_com_trajectory(
-        planner.aslip.x_0 * 2, 10, np.array([10, 0])
+    x_traj, z_traj = planner.find_com_trajectory(
+        planner.aslip.x_0 * 2, 2, np.array([2, 0])
     )
-    print(x_traj.shape)
+
+    # print(x_traj.shape)
+    t = np.linspace(0, 2, 100)
+    plt.figure()
+    plt.plot(x_traj(t), z_traj(t))
+    plt.show()
+
+    plt.figure()
+    plt.plot(t, z_traj(t))
+    plt.show()
