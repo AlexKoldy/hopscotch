@@ -6,10 +6,10 @@ import matplotlib.pyplot as plt
 class ASLIP:
     def __init__(self):
         # Constants
-        self.L_0 = 10.0  # original spring length
-        self.m = 1  # mass
+        self.L_0 = 1.0  # original spring length
+        self.m = 3  # mass
         self.g = -9.8  # gravity
-        self.k = 10
+        self.k = 10.7 * self.m * -self.g / self.L_0
 
         # Initial state [q, q_dot]
         self.x_0 = np.array(
@@ -18,9 +18,9 @@ class ASLIP:
                 0.0,  # Foot y-position (global frame)
                 0.0,  # Foot z-position (global frame)
                 0.0,  # Actuator length
-                0.0,  # CoM x-position (global frame)
+                0.1,  # CoM x-position (global frame)
                 0.0,  # CoM y-position (global frame)
-                10.0,  # CoM z-position (global frame)
+                1.0,  # CoM z-position (global frame)
                 0.0,  # Foot x-velocity (global frame)
                 0.0,  # Foot y-velocity (global frame)
                 0.0,  # Foot z-velocity (global frame)

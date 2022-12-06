@@ -79,7 +79,14 @@ class OfflinePlanner:
                 + (x[i, 6] - x[i, 2]) ** 2
             )
             prog.AddConstraint(d - x[i, 3] <= self.aslip.L_0)
-            prog.AddConstraint(d >= 0)
+            prog.AddConstraint(d >= 1)
+
+            # Add constraint on final actuator velocity
+            # prog.AddConstraint(x[i, 3] == 0)
+            # prog.AddConstraint(x[i, 10] == 0)
+
+            # Add final state constraint
+            # prog.AddConstraint(x[i, 4] <= 1.0)
 
         # Find delta t
         dt = timesteps[1] - timesteps[0]  # [s]
@@ -99,6 +106,7 @@ class OfflinePlanner:
 
         # Solve optimiation problem
         result = Solve(prog)
+
         x_sol = result.GetSolution(x)
         u_sol = result.GetSolution(u)
         t_land_sol = result.GetSolution(t_land)
@@ -110,10 +118,12 @@ class OfflinePlanner:
         # x_traj = PiecewisePolynomial.CubicHermite(timesteps, x_sol.T, x_dot_sol.T)
         x_traj = CubicHermiteSpline(timesteps, x_sol[:, 4], x_dot_sol[:, 4])
         z_traj = CubicHermiteSpline(timesteps, x_sol[:, 6], x_dot_sol[:, 6])
+        v_x_traj = CubicHermiteSpline(timesteps, x_sol[:, 11], x_dot_sol[:, 11])
+        v_z_traj = CubicHermiteSpline(timesteps, x_sol[:, 13], x_dot_sol[:, 13])
 
         # u_traj = PiecewisePolynomial.ZeroOrderHold(timesteps, u_sol.T)
 
-        return x_traj, z_traj
+        return x_traj, z_traj, t_land_sol, v_x_traj, v_z_traj
 
     def add_final_state_constraint(
         self,
@@ -174,7 +184,7 @@ class OfflinePlanner:
             # Setup constraints
             constraint_eval[0] = x_com_f
             constraint_eval[1] = y_com_f
-            constraint_eval[2] = z_com_f - q[3]
+            constraint_eval[2] = z_com_f
             constraint_eval[3] = (
                 np.sqrt(
                     (x_com_i - x_foot) ** 2
@@ -191,9 +201,7 @@ class OfflinePlanner:
         # Kinematic constraints
         x_jump = jumping_distance[0]  # TODO
         y_jump = jumping_distance[1]
-        bounds = np.array(
-            [x_jump, y_jump, self.aslip.L_0, self.aslip.L_0]
-        )  # TODO z constraint
+        bounds = np.array([x_jump, y_jump, 1.0, self.aslip.L_0])
         prog.AddConstraint(landing_constraint, bounds, bounds, np.hstack((x_f, t_land)))
 
         # Constraint on landing time
@@ -278,16 +286,53 @@ class OfflinePlanner:
 
 if __name__ == "__main__":
     planner = OfflinePlanner()
-    x_traj, z_traj = planner.find_com_trajectory(
-        planner.aslip.x_0 * 2, 2, np.array([2, 0])
+    x_traj, z_traj, t_land, v_x_traj, v_z_traj = planner.find_com_trajectory(
+        planner.aslip.x_0 * 2, 2, np.array([1, 0])
     )
+    t = np.linspace(0, 2, 100)
+    xx = x_traj(t)[-1]
+    zz = z_traj(t)[-1]
+
+    v_xx = v_x_traj(t)[-1]
+    v_zz = v_z_traj(t)[-1]
+    print(v_zz)
+    print(t_land)
+
+    dt = t[1] - t[0]
+
+    tt = 2
+
+    x_com = []
+    z_com = []
+    x_com.append(xx)
+    z_com.append(zz)
+    # print(t_land)
+    # print(dt)
+
+    t_max = 2 + t_land[0]
+    # t_max = 20
+
+    while tt < t_max:
+        xx += v_xx * dt
+        zz += v_zz * dt + (1 / 2) * planner.aslip.g * dt**2
+        v_zz += planner.aslip.g * dt
+        x_com.append(xx)
+        z_com.append(zz)
+        tt += dt
+
+    # print(len(x_com))
 
     # print(x_traj.shape)
     t = np.linspace(0, 2, 100)
     plt.figure()
     plt.plot(x_traj(t), z_traj(t))
+    plt.plot(x_com, z_com)
     plt.show()
 
     plt.figure()
-    plt.plot(t, z_traj(t))
+    plt.plot(t, 180 / np.pi * np.arctan2(z_traj(t), x_traj(t)))
     plt.show()
+
+    # plt.figure()
+    # plt.plot(t, z_traj(t))
+    # plt.show()
