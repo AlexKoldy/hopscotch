@@ -6,6 +6,8 @@ from scipy.interpolate import CubicHermiteSpline
 
 from aslip import ASLIP
 
+import latexify
+
 
 class OfflinePlanner:
     def __init__(self):
@@ -287,7 +289,7 @@ class OfflinePlanner:
 if __name__ == "__main__":
     planner = OfflinePlanner()
     x_traj, z_traj, t_land, v_x_traj, v_z_traj = planner.find_com_trajectory(
-        planner.aslip.x_0 * 2, 2, np.array([1, 0])
+        planner.aslip.x_0 * 2, 2, np.array([12.0, 0])
     )
     t = np.linspace(0, 2, 100)
     xx = x_traj(t)[-1]
