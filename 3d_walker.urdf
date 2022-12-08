@@ -193,36 +193,48 @@
   </joint>
   <joint name="left_hip_x" type="continuous">
     <parent link="torso"/>
-    <child link="left_hip_y"/>
+    <child link="left_hip_x"/>
     <axis xyz="1 0 0"/>
     <limit effort="500"/>
   </joint>
   <joint name="left_hip_y" type="continuous">
     <parent link="left_hip_x"/>
-    <child link="left_hip_z"/>
+    <child link="left_hip_y"/>
     <axis xyz="0 1 0"/>
     <limit effort="500"/>
   </joint>
   <joint name="left_hip_z" type="continuous">
     <parent link="left_hip_y"/>
+    <child link="left_hip_z"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="500"/>
+  </joint>
+  <joint name="left_hip_z_upperleg" type="continuous">
+    <parent link="left_hip_z"/>
     <child link="left_upper_leg"/>
     <axis xyz="0 0 1"/>
     <limit effort="500"/>
   </joint>
   <joint name="right_hip_x" type="continuous">
     <parent link="torso"/>
-    <child link="right_hip_y"/>
+    <child link="right_hip_x"/>
     <axis xyz="1 0 0"/>
     <limit effort="500"/>
   </joint>
   <joint name="right_hip_y" type="continuous">
     <parent link="right_hip_x"/>
-    <child link="right_hip_z"/>
+    <child link="right_hip_y"/>
     <axis xyz="0 1 0"/>
     <limit effort="500"/>
   </joint>
   <joint name="right_hip_z" type="continuous">
     <parent link="right_hip_y"/>
+    <child link="right_hip_z"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="500"/>
+  </joint>
+  <joint name="right_hip_z_upperleg" type="continuous">
+    <parent link="right_hip_z"/>
     <child link="right_upper_leg"/>
     <axis xyz="0 0 1"/>
     <limit effort="500"/>
