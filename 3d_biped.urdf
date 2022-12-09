@@ -1,0 +1,288 @@
+<?xml version="1.0" ?>
+<robot name="KneedCompassGait">
+
+  <link name="torso">
+    <visual>
+      <origin xyz="0 0 0.15"/>
+      <geometry>
+        <cylinder length="0.3" radius="0.005"/>
+      </geometry>
+      <material name="green">
+        <color rgba="0 1 0 1"/>
+      </material>
+    </visual>
+  </link>
+  <link name="left_hip_x"/>
+  <link name="left_hip_y"/>
+  <link name="left_hip_z"/>
+  <link name="right_hip_x"/>
+  <link name="right_hip_y"/>
+  <link name="right_hip_z"/>
+  <link name="torso_mass">
+    <inertial>
+      <mass value="50"/>
+      <inertia ixx="4" ixy="0" ixz="0" iyy="4" iyz="0" izz="4"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <sphere radius="0.075"/>
+      </geometry>
+      <material name="green">
+        <color rgba="0 1 0 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="left_upper_leg">
+    <visual>
+      <origin xyz="0 0 -0.25"/>
+      <geometry>
+        <cylinder length="0.5" radius="0.0075"/>
+      </geometry>
+      <material name="red">
+        <color rgba="1 0 0 1"/>
+      </material>
+    </visual>
+  </link>
+  <link name="left_upper_leg_mass">
+    <visual>
+      <origin xyz="0 0 -0.25"/>
+      <geometry>
+        <sphere radius="0.025"/>
+      </geometry>
+      <material name="red">
+        <color rgba="1 0 0 1"/>
+      </material>
+    </visual>
+    <inertial>
+      <origin xyz="0 0 -0.25"/>
+      <mass value="1.5"/>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+    </inertial>
+  </link>
+  <joint name="left_upper_leg_mass_weld" type="fixed">
+    <parent link="left_upper_leg"/>
+    <child link="left_upper_leg_mass"/>
+  </joint>
+  <link name="left_lower_leg">
+    <visual>
+      <origin xyz="0 0 -0.25"/>
+      <geometry>
+        <cylinder length="0.5" radius="0.0075"/>
+      </geometry>
+      <material name="red">
+        <color rgba="1 0 0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 -0.5"/>
+      <geometry>
+        <sphere radius="0"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="left_lower_leg_mass">
+    <visual>
+      <origin xyz="0 0 -0.25"/>
+      <geometry>
+        <sphere radius="0.025"/>
+      </geometry>
+      <material name="red">
+        <color rgba="1 0 0 1"/>
+      </material>
+    </visual>
+    <inertial>
+      <origin xyz="0 0 -0.25"/>
+      <mass value="0.5"/>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+    </inertial>
+  </link>
+  <joint name="left_lower_leg_mass_weld" type="fixed">
+    <parent link="left_lower_leg"/>
+    <child link="left_lower_leg_mass"/>
+  </joint>
+  <link name="right_upper_leg">
+    <visual>
+      <origin xyz="0 0 -0.25"/>
+      <geometry>
+        <cylinder length="0.5" radius="0.0075"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0 0 1 1"/>
+      </material>
+    </visual>
+  </link>
+  <link name="right_upper_leg_mass">
+    <visual>
+      <origin xyz="0 0 -0.25"/>
+      <geometry>
+        <sphere radius="0.025"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0 0 1 1"/>
+      </material>
+    </visual>
+    <inertial>
+      <origin xyz="0 0 -0.25"/>
+      <mass value="1.5"/>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+    </inertial>
+  </link>
+  <joint name="right_upper_leg_mass_weld" type="fixed">
+    <parent link="right_upper_leg"/>
+    <child link="right_upper_leg_mass"/>
+  </joint>
+  <link name="right_lower_leg">
+    <visual>
+      <origin xyz="0 0 -0.25"/>
+      <geometry>
+        <cylinder length="0.5" radius="0.0075"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0 0 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 -0.5"/>
+      <geometry>
+        <sphere radius="0"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="right_lower_leg_mass">
+    <visual>
+      <origin xyz="0 0 -0.25"/>
+      <geometry>
+        <sphere radius="0.025"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0 0 1 1"/>
+      </material>
+    </visual>
+    <inertial>
+      <origin xyz="0 0 -0.25"/>
+      <mass value="0.5"/>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+    </inertial>
+  </link>
+  <joint name="torso_mass_weld" type="fixed">
+    <parent link="torso"/>
+    <child link="torso_mass"/>
+    <origin xyz="0 0 0.15"/>
+  </joint>
+  <joint name="right_lower_leg_mass_weld" type="fixed">
+    <parent link="right_lower_leg"/>
+    <child link="right_lower_leg_mass"/>
+  </joint>
+  <joint name="left_hip_x" type="continuous">
+    <parent link="torso"/>
+    <child link="left_hip_x"/>
+    <axis xyz="1 0 0"/>
+    <limit effort="500"/>
+  </joint>
+  <joint name="left_hip_y" type="continuous">
+    <parent link="left_hip_x"/>
+    <child link="left_hip_y"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="500"/>
+  </joint>
+  <joint name="left_hip_z" type="continuous">
+    <parent link="left_hip_y"/>
+    <child link="left_hip_z"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="500"/>
+  </joint>
+  <joint name="left_hip_z_upperleg" type="fixed">
+    <parent link="left_hip_z"/>
+    <child link="left_upper_leg"/>
+  </joint>
+  <joint name="right_hip_x" type="continuous">
+    <parent link="torso"/>
+    <child link="right_hip_x"/>
+    <axis xyz="1 0 0"/>
+    <limit effort="500"/>
+  </joint>
+  <joint name="right_hip_y" type="continuous">
+    <parent link="right_hip_x"/>
+    <child link="right_hip_y"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="500"/>
+  </joint>
+  <joint name="right_hip_z" type="continuous">
+    <parent link="right_hip_y"/>
+    <child link="right_hip_z"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="500"/>
+  </joint>
+  <joint name="right_hip_z_upperleg" type="fixed">
+    <parent link="right_hip_z"/>
+    <child link="right_upper_leg"/>
+  </joint>
+  <joint name="left_knee_pin" type="continuous">
+    <parent link="left_upper_leg"/>
+    <child link="left_lower_leg"/>
+    <axis xyz="0 1 0"/>
+    <origin xyz="0 0 -0.5"/>
+    <limit effort="400" lower="0"/>
+    <dynamics damping="1" />
+  </joint>
+  <joint name="right_knee_pin" type="revolute">
+    <parent link="right_upper_leg"/>
+    <child link="right_lower_leg"/>
+    <axis xyz="0 1 0"/>
+    <origin xyz="0 0 -0.5"/>
+    <limit effort="400" lower="0"/>
+    <dynamics damping="1" />
+  </joint>
+  <transmission name="left_hip_trans_x" type="SimpleTransmission">
+    <actuator name="left_hip_torque_x"/>
+    <joint name="left_hip_x"/>
+    <mechanicalReduction>1</mechanicalReduction>
+  </transmission>
+  <transmission name="left_hip_trans_y" type="SimpleTransmission">
+    <actuator name="left_hip_torque_y"/>
+    <joint name="left_hip_y"/>
+    <mechanicalReduction>1</mechanicalReduction>
+  </transmission>
+  <transmission name="left_hip_trans_z" type="SimpleTransmission">
+    <actuator name="left_hip_torque_z"/>
+    <joint name="left_hip_z"/>
+    <mechanicalReduction>1</mechanicalReduction>
+  </transmission>
+  <transmission name="right_hip_trans_x" type="SimpleTransmission">
+    <actuator name="right_hip_torque_x"/>
+    <joint name="right_hip_x"/>
+    <mechanicalReduction>1</mechanicalReduction>
+  </transmission>
+  <transmission name="right_hip_trans_y" type="SimpleTransmission">
+    <actuator name="right_hip_torque_y"/>
+    <joint name="right_hip_y"/>
+    <mechanicalReduction>1</mechanicalReduction>
+  </transmission>
+  <transmission name="right_hip_trans_z" type="SimpleTransmission">
+    <actuator name="right_hip_torque_z"/>
+    <joint name="right_hip_z"/>
+    <mechanicalReduction>1</mechanicalReduction>
+  </transmission>
+  <transmission name="left_knee_trans" type="SimpleTransmission">
+    <actuator name="left_knee_torque"/>
+    <joint name="left_knee_pin"/>
+    <mechanicalReduction>1</mechanicalReduction>
+  </transmission>
+  <transmission name="right_knee_trans" type="SimpleTransmission">
+    <actuator name="right_knee_torque"/>
+    <joint name="right_knee_pin"/>
+    <mechanicalReduction>1</mechanicalReduction>
+  </transmission>
+  <collision_filter_group name="robot_links">
+    <member link="left_lower_leg_mass"/>
+    <member link="right_lower_leg_mass"/>
+    <member link="left_lower_leg"/>
+    <member link="right_lower_leg"/>
+    <member link="right_upper_leg"/>
+    <member link="left_upper_leg"/>
+    <member link="torso"/>
+    <member link="torso_mass"/>
+    <ignored_collision_filter_group collision_filter_group="robot_links"/>
+  </collision_filter_group>
+</robot>

@@ -11,18 +11,18 @@ from pydrake.common.value import AbstractValue
 from pydrake.math import RigidTransform
 
 import importlib
-import osc_tracking_objective_jump
+import archive.osc_tracking_objective_jump as osc_tracking_objective_jump
 
 importlib.reload(osc_tracking_objective_jump)
 
-from osc_tracking_objective_jump import *
+from archive.osc_tracking_objective_jump import *
 
 import importlib
 import fsm_utils_jump
 
 importlib.reload(fsm_utils_jump)
 
-from fsm_utils_jump import LEFT_STANCE, RIGHT_STANCE, get_fsm
+# from fsm_utils_jump import LEFT_STANCE, RIGHT_STANCE, get_fsm
 
 
 @dataclass
@@ -45,67 +45,78 @@ class OscGains:
 class OperationalSpaceWalkingController(LeafSystem):
     def __init__(self, gains: OscGains):
         """
-            Constructor for the operational space controller (Do Not Modify).
-            We load a drake MultibodyPlant representing the planar walker
-            to use for kinematics and dynamics calculations.
+        Constructor for the operational space controller (Do Not Modify).
+        We load a drake MultibodyPlant representing the planar walker
+        to use for kinematics and dynamics calculations.
 
-            We then define tracking objectives, and finally,
-            we declare input ports and output ports
+        We then define tracking objectives, and finally,
+        we declare input ports and output ports
         """
         LeafSystem.__init__(self)
         self.gains = gains
 
-        ''' Load the MultibodyPlant '''
+        """ Load the MultibodyPlant """
         self.plant = MultibodyPlant(0.0)
         self.parser = Parser(self.plant)
         self.parser.AddModelFromFile("planar_walker.urdf")
         self.plant.WeldFrames(
             self.plant.world_frame(),
             self.plant.GetBodyByName("base").body_frame(),
-            RigidTransform.Identity()
+            RigidTransform.Identity(),
         )
         self.plant.Finalize()
         self.plant_context = self.plant.CreateDefaultContext()
 
-        ''' Assign contact frames '''
+        """ Assign contact frames """
         self.contact_points = {
             LEFT_STANCE: PointOnFrame(
                 self.plant.GetBodyByName("left_lower_leg").body_frame(),
-                np.array([0, 0, -0.5])
+                np.array([0, 0, -0.5]),
             ),
             RIGHT_STANCE: PointOnFrame(
                 self.plant.GetBodyByName("right_lower_leg").body_frame(),
-                np.array([0, 0, -0.5])
-            )
+                np.array([0, 0, -0.5]),
+            ),
         }
         self.swing_foot_points = {
             LEFT_STANCE: self.contact_points[RIGHT_STANCE],
-            RIGHT_STANCE: self.contact_points[LEFT_STANCE]
+            RIGHT_STANCE: self.contact_points[LEFT_STANCE],
         }
 
-        ''' Initialize tracking objectives '''
+        """ Initialize tracking objectives """
         self.tracking_objectives = {
             "com_traj": CenterOfMassPositionTrackingObjective(
-                self.plant, self.plant_context, [LEFT_STANCE, RIGHT_STANCE],
-                self.gains.kp_com, self.gains.kd_com
+                self.plant,
+                self.plant_context,
+                [LEFT_STANCE, RIGHT_STANCE],
+                self.gains.kp_com,
+                self.gains.kd_com,
             ),
             "swing_foot_traj": PointPositionTrackingObjective(
-                self.plant, self.plant_context, [LEFT_STANCE, RIGHT_STANCE],
-                self.gains.kp_swing_foot, self.gains.kd_swing_foot, self.swing_foot_points
+                self.plant,
+                self.plant_context,
+                [LEFT_STANCE, RIGHT_STANCE],
+                self.gains.kp_swing_foot,
+                self.gains.kd_swing_foot,
+                self.swing_foot_points,
             ),
             "base_joint_traj": JointAngleTrackingObjective(
-                self.plant, self.plant_context, [LEFT_STANCE, RIGHT_STANCE],
-                self.gains.kp_base, self.gains.kd_base, "planar_roty"
-            )
+                self.plant,
+                self.plant_context,
+                [LEFT_STANCE, RIGHT_STANCE],
+                self.gains.kp_base,
+                self.gains.kd_base,
+                "planar_roty",
+            ),
         }
         self.tracking_costs = {
             "com_traj": self.gains.w_com,
             "swing_foot_traj": self.gains.w_swing_foot,
-            "base_joint_traj": self.gains.w_base
+            "base_joint_traj": self.gains.w_base,
         }
         self.trajs = self.tracking_objectives.keys()
 
-        ''' Declare Input Ports '''
+        """ Declare Input Ports """
         # State input port
         self.robot_state_input_port_index = self.DeclareVectorInputPort(
             "x", self.plant.num_positions() + self.plant.num_velocities()
@@ -114,9 +125,15 @@ class OperationalSpaceWalkingController(LeafSystem):
         # Trajectory Input Ports
         trj = PiecewisePolynomial()
         self.traj_input_ports = {
-            "com_traj": self.DeclareAbstractInputPort("com_traj", AbstractValue.Make(trj)).get_index(),
-            "swing_foot_traj": self.DeclareAbstractInputPort("swing_foot_traj", AbstractValue.Make(trj)).get_index(),
-            "base_joint_traj": self.DeclareAbstractInputPort("base_joint_traj", AbstractValue.Make(trj)).get_index()
+            "com_traj": self.DeclareAbstractInputPort(
+                "com_traj", AbstractValue.Make(trj)
+            ).get_index(),
+            "swing_foot_traj": self.DeclareAbstractInputPort(
+                "swing_foot_traj", AbstractValue.Make(trj)
+            ).get_index(),
+            "base_joint_traj": self.DeclareAbstractInputPort(
+                "base_joint_traj", AbstractValue.Make(trj)
+            ).get_index(),
         }
 
         # Define the output ports
@@ -132,14 +149,14 @@ class OperationalSpaceWalkingController(LeafSystem):
     def get_state_input_port(self):
         return self.get_input_port(self.robot_state_input_port_index)
 
-    def CalculateContactJacobian(self, fsm: int) -> Tuple[np.ndarray, np.ndarray]:
+    def CalculateContactJacobian(self) -> Tuple[np.ndarray, np.ndarray]:
         """
-            For a given finite state, LEFT_STANCE or RIGHT_STANCE, calculate the
-            Jacobian terms for the contact constraint, J and Jdot * v.
+        For a given finite state, LEFT_STANCE or RIGHT_STANCE, calculate the
+        Jacobian terms for the contact constraint, J and Jdot * v.
 
-            As an example, see CalcJ and CalcJdotV in PointPositionTrackingObjective
+        As an example, see CalcJ and CalcJdotV in PointPositionTrackingObjective
 
-            use self.contact_points to get the PointOnFrame for the current stance foot
+        use self.contact_points to get the PointOnFrame for the current stance foot
         """
         J = np.zeros((3, self.plant.num_velocities()))
         JdotV = np.zeros((3,))
@@ -149,18 +166,28 @@ class OperationalSpaceWalkingController(LeafSystem):
         pt_to_track = self.contact_points[fsm]
 
         J = self.plant.CalcJacobianTranslationalVelocity(
-            self.plant_context, JacobianWrtVariable.kV, pt_to_track.frame,
-            pt_to_track.pt, self.plant.world_frame(), self.plant.world_frame()
+            self.plant_context,
+            JacobianWrtVariable.kV,
+            pt_to_track.frame,
+            pt_to_track.pt,
+            self.plant.world_frame(),
+            self.plant.world_frame(),
         )
 
         JdotV = self.plant.CalcBiasTranslationalAcceleration(
-            self.plant_context, JacobianWrtVariable.kV, pt_to_track.frame,
-            pt_to_track.pt, self.plant.world_frame(), self.plant.world_frame()
+            self.plant_context,
+            JacobianWrtVariable.kV,
+            pt_to_track.frame,
+            pt_to_track.pt,
+            self.plant.world_frame(),
+            self.plant.world_frame(),
         ).ravel()
 
         return J, JdotV
 
-    def SetupAndSolveQP(self, context: Context) -> Tuple[np.ndarray, MathematicalProgram]:
+    def SetupAndSolveQP(
+        self, context: Context
+    ) -> Tuple[np.ndarray, MathematicalProgram]:
 
         # First get the state, time, and fsm state
         x = self.EvalVectorInput(context, self.robot_state_input_port_index).get_value()
@@ -172,10 +199,12 @@ class OperationalSpaceWalkingController(LeafSystem):
 
         # Update tracking objectives
         for traj_name in self.trajs:
-            traj = self.EvalAbstractInput(context, self.traj_input_ports[traj_name]).get_value()
+            traj = self.EvalAbstractInput(
+                context, self.traj_input_ports[traj_name]
+            ).get_value()
             self.tracking_objectives[traj_name].Update(t, traj, fsm)
 
-        '''Set up and solve the QP '''
+        """Set up and solve the QP """
         prog = MathematicalProgram()
 
         # Make decision variables
@@ -193,10 +222,11 @@ class OperationalSpaceWalkingController(LeafSystem):
 
             # TODO: Add Cost per tracking objective
 
-
         # TODO: Add Quadratic Cost on vdot using self.gains.w_vdot * Identity
 
-        prog.AddQuadraticCost(2 * self.gains.w_vdot * np.eye(7), np.zeros(7), vdot, is_convex=True)
+        prog.AddQuadraticCost(
+            2 * self.gains.w_vdot * np.eye(7), np.zeros(7), vdot, is_convex=True
+        )
 
         # Calculate terms in the manipulator equation
         J_c, J_c_dot_v = self.CalculateContactJacobian(fsm)
@@ -208,7 +238,6 @@ class OperationalSpaceWalkingController(LeafSystem):
         # TODO: Add the dynamics constraint
 
         # TODO: Add Contact Constraint
-
 
         # TODO: Add Friction Cone Constraint assuming mu = 1
         A_ineq = np.array([[1, 0, -1], [-1, 0, -1]])
@@ -238,9 +267,15 @@ class OperationalSpaceWalkingController(LeafSystem):
 
 if __name__ == "__main__":
     gains = OscGains(
-        np.eye(3), np.eye(3), np.eye(3),
-        np.eye(3), np.eye(3), np.eye(3),
-        np.eye(1), np.eye(1), np.eye(1),
-        0.001 * np.eye(5)
+        np.eye(3),
+        np.eye(3),
+        np.eye(3),
+        np.eye(3),
+        np.eye(3),
+        np.eye(3),
+        np.eye(1),
+        np.eye(1),
+        np.eye(1),
+        0.001 * np.eye(5),
     )
     osc = OperationalSpaceWalkingController(gains)

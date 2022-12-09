@@ -6,7 +6,7 @@ from scipy.interpolate import CubicHermiteSpline
 
 from aslip import ASLIP
 
-import latexify
+# import latexify
 
 
 class OfflinePlanner:
@@ -117,7 +117,9 @@ class OfflinePlanner:
         x_dot_sol = np.zeros(x_sol.shape)
         for i in range(self.N):
             x_dot_sol[i] = self.aslip.f(x_sol[i], u_sol[i])
-        # x_traj = PiecewisePolynomial.CubicHermite(timesteps, x_sol.T, x_dot_sol.T)
+        x_traj2 = PiecewisePolynomial.CubicHermite(timesteps, x_sol.T, x_dot_sol.T)
+        print(type(x_traj2))
+
         x_traj = CubicHermiteSpline(timesteps, x_sol[:, 4], x_dot_sol[:, 4])
         z_traj = CubicHermiteSpline(timesteps, x_sol[:, 6], x_dot_sol[:, 6])
         v_x_traj = CubicHermiteSpline(timesteps, x_sol[:, 11], x_dot_sol[:, 11])
