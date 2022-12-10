@@ -18,8 +18,10 @@ from tracking_objectives.center_of_mass_position_tracking_objective import (
 
 
 class ComPlanner(LeafSystem):
-    def __init__(self):
+    def __init__(self, offline_traj):
         LeafSystem.__init__(self)
+
+        self.offline_traj = offline_traj
 
         self.plant = MultibodyPlant(0.0)
         self.parser = Parser(self.plant)
@@ -37,10 +39,28 @@ class ComPlanner(LeafSystem):
         return self.get_output_port(self.com_traj_output_port_index)
 
     def CalcComTraj(self, context: Context, output) -> None:
-        Y = np.zeros((3, 2))
-        Y[0] = 0 * np.ones((2,))
-        Y[2] = 0.9 * np.ones((2,))
+        # if we're in mode 0:
+        # lean forward
+        traj = np.zeros((3, 2))
+        traj[0] = np.array([0, 0.25])  # x_i & x_f
+        traj[2] = np.array([1, 0.8])  # z_i & z_f
+        t_start = 0  # [s]
+        t_end = 2  # [s]
         com_traj = PiecewisePolynomial.CubicWithContinuousSecondDerivatives(
-            np.array([0, 10]), Y, np.zeros((3,)), np.zeros((3,))
+            np.array([t_start, t_end]), traj, np.zeros((3,)), np.zeros((3,))
         )
+
+        # if we're in mode 1:
+        # so we've hit t_end
+        # follow the offline planner trajectory
+
+        # once we hit the end of this trajectory
+        # generate the CoM projectile motion spline
+        # just generate random spline or something
+
+        # then, figure out when landed (probably cant use
+        # time here)
+        # start trying to stabilize the CoM
+        # (see above)
+
         output.set_value(com_traj)

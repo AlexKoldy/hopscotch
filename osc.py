@@ -199,6 +199,9 @@ class OperationalSpaceController(LeafSystem):
         lambda_c = prog.NewContinuousVariables(6, "lambda_c")
 
         for traj_name in self.trajs:
+            # if the finite state machine is at some time between jumping and landing,
+            # just dont add a cost on the CoM
+
             obj = self.tracking_objectives[traj_name]
             yddot_cmd_i = obj.yddot_cmd
             J_i = obj.J
@@ -239,6 +242,8 @@ class OperationalSpaceController(LeafSystem):
 
         prog.AddLinearEqualityConstraint(J_c_dot_v + J_c @ vdot, np.zeros((6, 1)))
 
+        # Only enforce these constraints on the foot when its not
+        # supposed to be in flight phase
         A = np.array(
             [
                 [-1, 0, -1, 0, 0, 0],
