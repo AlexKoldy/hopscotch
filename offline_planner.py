@@ -66,7 +66,8 @@ class OfflinePlanner:
         x_f = x[-1]
 
         # Intialize time parameters
-        t_0 = 0.0  # initial time [s]
+        t_0 = 0.3  # initial time [s]
+        # self.t_0
         t_land = prog.NewContinuousVariables(1, "t_land")  # [s]
         timesteps = np.linspace(t_0, t_f, self.N)  # [s]
 
@@ -148,6 +149,8 @@ class OfflinePlanner:
         x_dot_sol = np.zeros(x_sol.shape)
         for i in range(self.N):
             x_dot_sol[i] = self.aslip.f(x_sol[i], u_sol[i])
+
+        # timesteps = np.linspace(0.3, 0.6, self.N)
         x_traj2 = PiecewisePolynomial.CubicHermite(timesteps, x_sol.T, x_dot_sol.T)
         print(type(x_traj2))
 
@@ -332,7 +335,7 @@ if __name__ == "__main__":
 
     print("d_0: ", planner.d_0)
 
-    t_last = 0.3
+    t_last = 0.6
     distance = np.array([1, 0])
 
     (
@@ -398,13 +401,14 @@ if __name__ == "__main__":
 
     # print(len(x_com))
 
-    t = np.linspace(0, t_last, 100)
+    t = np.linspace(0.3, t_last, 100)
+    tt = np.linspace(0, 0.3, 100)
 
     plt.figure()
     plt.title("com x vs com z")
     plt.plot(x_traj(t), z_traj(t))
     plt.plot(x_com, z_com)
-    plt.plot(xxx(t), zzz(t))
+    plt.plot(xxx(tt), zzz(tt))
     plt.xlabel("CoM x")
     plt.ylabel("CoM z")
     plt.show()
