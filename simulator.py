@@ -23,7 +23,8 @@ from pydrake.all import (
 
 from osc_gains import OscGains
 from osc import OperationalSpaceController
-from com_planner import ComPlanner
+from online_planner import OnlinePlanner
+from offline_planner import OfflinePlanner
 
 
 if __name__ == "__main__":
@@ -82,7 +83,30 @@ if __name__ == "__main__":
         W,
     )
 
-    planner = builder.AddSystem(ComPlanner())
+    # Setup offline trajectory optimization
+    offline_planner = OfflinePlanner()
+    (
+        com_mode_0_traj,
+        com_mode_1_traj,
+        com_mode_2_traj,
+    ) = offline_planner.generate_com_trajectories()
+    (
+        lf_mode_0_traj,
+        lf_mode_1_traj,
+        lf_mode_2_traj,
+    ) = offline_planner.generate_lf_trajectories()
+    (
+        rf_mode_0_traj,
+        rf_mode_1_traj,
+        rf_mode_2_traj,
+    ) = offline_planner.generate_rf_trajectories()
+
+    planner = builder.AddSystem(
+        OnlinePlanner(com_mode_0_traj, com_mode_1_traj, com_mode_2_traj)
+    )
+
+    # Wire plant to OSC
+    builder.Connect(plant.get_state_output_port(), planner.get_state_input_port())
 
     # Wire OSC to plant
     osc = builder.AddSystem(OperationalSpaceController(gains))
@@ -196,7 +220,7 @@ if __name__ == "__main__":
     # q[4] = -2 * theta
     # q[5] = theta
     # q[6] = -2 * theta
-    # plant.SetPositions(plant_context, q)
+    # plant.SetPositionsplant_context, q)
 
     # Simulate the robot
     # simulator.AdvanceTo(sim_time)

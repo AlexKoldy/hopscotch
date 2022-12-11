@@ -32,11 +32,6 @@ class OperationalSpaceController(LeafSystem):
         self.plant = MultibodyPlant(0.0)
         self.parser = Parser(self.plant)
         self.parser.AddModelFromFile("3d_biped.urdf")
-        # self.plant.WeldFrames(
-        #     self.plant.world_frame(),
-        #     self.plant.GetBodyByName("base").body_frame(),
-        #     RigidTransform.Identity(),
-        # )
         self.plant.Finalize()
         self.plant_context = self.plant.CreateDefaultContext()
 
