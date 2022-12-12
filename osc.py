@@ -12,18 +12,20 @@ from pydrake.multibody.all import JacobianWrtVariable
 
 from osc_gains import OscGains
 from point_on_frame import PointOnFrame
-from tracking_objectives.point_tracking_objective import PointPositionTrackingObjective
-from tracking_objectives.center_of_mass_position_tracking_objective import (
+from point_tracking_objective import PointPositionTrackingObjective
+from center_of_mass_position_tracking_objective import (
     CenterOfMassPositionTrackingObjective,
 )
 
 
 class OperationalSpaceController(LeafSystem):
-    def __init__(self, gains: OscGains):
+    def __init__(self, gains: OscGains, fsm):
         """
         TODO
         """
         LeafSystem.__init__(self)
+
+        self.fsm = fsm
 
         # Set gains
         self.gains = gains
@@ -32,11 +34,6 @@ class OperationalSpaceController(LeafSystem):
         self.plant = MultibodyPlant(0.0)
         self.parser = Parser(self.plant)
         self.parser.AddModelFromFile("3d_biped.urdf")
-        # self.plant.WeldFrames(
-        #     self.plant.world_frame(),
-        #     self.plant.GetBodyByName("base").body_frame(),
-        #     RigidTransform.Identity(),
-        # )
         self.plant.Finalize()
         self.plant_context = self.plant.CreateDefaultContext()
 
@@ -60,25 +57,25 @@ class OperationalSpaceController(LeafSystem):
                 self.gains.k_p_com,
                 self.gains.k_d_com,
             ),
-            # "left_foot_traj": PointPositionTrackingObjective(
-            #     self.plant,
-            #     self.plant_context,
-            #     self.gains.k_p_left_foot,
-            #     self.gains.k_d_left_foot,
-            #     self.contact_points["left leg"],
-            # ),
-            # "right_foot_traj": PointPositionTrackingObjective(
-            #     self.plant,
-            #     self.plant_context,
-            #     self.gains.k_p_right_foot,
-            #     self.gains.k_d_right_foot,
-            #     self.contact_points["right leg"],
-            # ),
+            "left_foot_traj": PointPositionTrackingObjective(
+                self.plant,
+                self.plant_context,
+                self.gains.k_p_left_foot,
+                self.gains.k_d_left_foot,
+                self.contact_points["left leg"],
+            ),
+            "right_foot_traj": PointPositionTrackingObjective(
+                self.plant,
+                self.plant_context,
+                self.gains.k_p_right_foot,
+                self.gains.k_d_right_foot,
+                self.contact_points["right leg"],
+            ),
         }
         self.tracking_costs = {
             "com_traj": self.gains.w_com,
-            # "left_foot_traj": self.gains.w_left_foot,
-            # "right_foot_traj": self.gains.w_right_foot,
+            "left_foot_traj": self.gains.w_left_foot,
+            "right_foot_traj": self.gains.w_right_foot,
         }
         self.trajs = self.tracking_objectives.keys()
 
@@ -92,12 +89,12 @@ class OperationalSpaceController(LeafSystem):
             "com_traj": self.DeclareAbstractInputPort(
                 "com_traj", AbstractValue.Make(trj)
             ).get_index(),
-            # "left_foot_traj": self.DeclareAbstractInputPort(
-            #     "left_foot_traj", AbstractValue.Make(trj)
-            # ).get_index(),
-            # "right_foot_traj": self.DeclareAbstractInputPort(
-            #     "right_foot_traj", AbstractValue.Make(trj)
-            # ).get_index(),
+            "left_foot_traj": self.DeclareAbstractInputPort(
+                "left_foot_traj", AbstractValue.Make(trj)
+            ).get_index(),
+            "right_foot_traj": self.DeclareAbstractInputPort(
+                "right_foot_traj", AbstractValue.Make(trj)
+            ).get_index(),
         }  # trajectory input ports
 
         # Define the output ports
@@ -180,6 +177,8 @@ class OperationalSpaceController(LeafSystem):
         x = self.EvalVectorInput(context, self.robot_state_input_port_index).get_value()
         t = context.get_time()
 
+        fsm = self.fsm.get_state(t)
+
         # Update the plant context with the current position and velocity
         self.plant.SetPositionsAndVelocities(self.plant_context, x)
 
@@ -199,14 +198,18 @@ class OperationalSpaceController(LeafSystem):
         lambda_c = prog.NewContinuousVariables(6, "lambda_c")
 
         for traj_name in self.trajs:
-            # if the finite state machine is at some time between jumping and landing,
-            # just dont add a cost on the CoM
 
             obj = self.tracking_objectives[traj_name]
             yddot_cmd_i = obj.yddot_cmd
             J_i = obj.J
             JdotV_i = obj.JdotV
             W_i = self.tracking_costs[traj_name]
+
+            if fsm == 2 and traj_name == "com_traj":
+                W_i = np.zeros(W_i.shape)
+            elif fsm == 3 and traj_name == "lf_traj":
+                W_i = np.zeros(W_i.shape)
+                W_i[-1, -1] = 1
 
             Q_i = 2 * J_i.T @ W_i @ J_i
             b_i_T = (
@@ -229,6 +232,8 @@ class OperationalSpaceController(LeafSystem):
 
         # Calculate terms in the manipulator equation
         J_c, J_c_dot_v = self.CalculateContactJacobian()
+        if fsm == 2 and np.any(J_c):
+            self.fsm.set_landing()
         M = self.plant.CalcMassMatrix(self.plant_context)
         Cv = self.plant.CalcBiasTerm(self.plant_context)
         # Drake gives gravity as an external force, but we take the negative to match
@@ -255,12 +260,13 @@ class OperationalSpaceController(LeafSystem):
             ]
         )
         b = np.array([0, 0, 0, 0, 0, 0])
-        prog.AddLinearConstraint((A @ lambda_c)[0] <= b[0])
-        prog.AddLinearConstraint((A @ lambda_c)[1] <= b[1])
-        prog.AddLinearConstraint((A @ lambda_c)[2] <= b[2])
-        prog.AddLinearConstraint((A @ lambda_c)[3] <= b[3])
-        prog.AddLinearConstraint((A @ lambda_c)[4] <= b[4])
-        prog.AddLinearConstraint((A @ lambda_c)[5] <= b[5])
+        if not fsm == 2:
+            prog.AddLinearConstraint((A @ lambda_c)[0] <= b[0])
+            prog.AddLinearConstraint((A @ lambda_c)[1] <= b[1])
+            prog.AddLinearConstraint((A @ lambda_c)[2] <= b[2])
+            prog.AddLinearConstraint((A @ lambda_c)[3] <= b[3])
+            prog.AddLinearConstraint((A @ lambda_c)[4] <= b[4])
+            prog.AddLinearConstraint((A @ lambda_c)[5] <= b[5])
 
         solver = OsqpSolver()
         prog.SetSolverOption(solver.id(), "max_iter", 2000)
@@ -282,22 +288,22 @@ class OperationalSpaceController(LeafSystem):
         output.SetFromVector(usol)
 
 
-# if __name__ == "__main__":
-#     Kp = np.diag([100, 0, 100])
-#     Kd = np.diag([10, 0, 10])
-#     W = np.diag([1, 0, 1])
+if __name__ == "__main__":
+    Kp = np.diag([100, 0, 100])
+    Kd = np.diag([10, 0, 10])
+    W = np.diag([1, 0, 1])
 
-#     Wcom = np.eye(3)
+    Wcom = np.eye(3)
 
-#     gains = OscGains(
-#         Kp,
-#         Kd,
-#         Wcom,
-#         Kp,
-#         Kd,
-#         W,
-#         Kp,
-#         Kd,
-#         W,
-#     )
-#     osc = OperationalSpaceController(gains)
+    gains = OscGains(
+        Kp,
+        Kd,
+        Wcom,
+        Kp,
+        Kd,
+        W,
+        Kp,
+        Kd,
+        W,
+    )
+    osc = OperationalSpaceController(gains)

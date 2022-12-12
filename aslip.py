@@ -19,9 +19,9 @@ class ASLIP:
                 0.0,  # Foot y-position (global frame)
                 0.0,  # Foot z-position (global frame)
                 0.0,  # Actuator length
-                0.1,  # CoM x-position (global frame)
+                0.2,  # CoM x-position (global frame)
                 0.0,  # CoM y-position (global frame)
-                0.8,  # CoM z-position (global frame)
+                np.abs(np.sqrt(0.8**2 - 0.2**2)),  # CoM z-position (global frame)
                 0.0,  # Foot x-velocity (global frame)
                 0.0,  # Foot y-velocity (global frame)
                 0.0,  # Foot z-velocity (global frame)
@@ -51,6 +51,8 @@ class ASLIP:
         F_s = (
             self.k
             * (self.L_0 - d + q)
+            # * (self.L_0 - q)
+            # * (-q)
             * np.array(
                 [
                     (p_com[0] - p_foot[0]) / d,
